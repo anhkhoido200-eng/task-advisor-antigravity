@@ -1,0 +1,5 @@
+{
+  "name": "task-advisor",
+  "version": "1.0.0",
+  "description": "Smart task advisor recommending models (Antigravity + XAI247), matching skills from 700+ local skills, and Swarm/Subagent strategies before complex work."
+}
