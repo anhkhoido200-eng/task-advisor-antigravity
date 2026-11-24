@@ -5,7 +5,7 @@ import os
 import re
 import shutil
 
-from skill_index import strip_accents
+from skill_index import normalize_tech_terms, strip_accents
 
 _XAI247_DEFAULT_MODELS = [
     "xai247/gpt-6-luna",
@@ -23,9 +23,9 @@ _DOMAIN_RULES = (
         "lam dep", "thiet ke web", "trang web", "responsive", "layout",
     )),
     ("backend_api", (
-        "backend", "api", "fastapi", "express", "nestjs", "django", "flask",
-        "graphql", "rest", "microservice", "microservices", "server", "endpoint",
-        "webhook", "websocket", "mcp server",
+        "backend", "api", "fastapi", "express", "expressjs", "nestjs", "django",
+        "flask", "nodejs", "graphql", "rest", "microservice", "microservices",
+        "server", "endpoint", "webhook", "websocket", "mcp server",
     )),
     ("database", (
         "database", "co so du lieu", "csdl", "postgres", "postgresql", "mysql",
@@ -38,7 +38,7 @@ _DOMAIN_RULES = (
     )),
     ("devops_deploy", (
         "deploy", "trien khai", "vercel", "cloudflare", "netlify", "railway",
-        "docker", "kubernetes", "k8s", "helm", "terraform", "ci cd", "ci/cd",
+        "docker", "kubernetes", "k8s", "helm", "terraform", "cicd", "ci cd", "ci/cd",
         "github actions", "pipeline",
     )),
     ("security", (
@@ -62,7 +62,11 @@ _DOMAIN_RULES = (
     )),
     ("browser_web", (
         "trinh duyet", "browser", "playwright", "click", "dang nhap web",
-        "mo trang", "localhost", "web app", "cao du lieu web", "scrape",
+        "mo trang", "localhost", "kiem tra trang", "cao du lieu web", "scrape",
+    )),
+    ("seo_content", (
+        "seo", "eeat", "e-e-a-t", "bai viet", "blog", "content", "meta",
+        "backlink", "keyword", "copywriting",
     )),
     ("docs_diagram", (
         "tai lieu", "readme", "so do", "mermaid", "c4", "diagram", "thuyet trinh",
@@ -77,7 +81,7 @@ _DOMAIN_RULES = (
         "clean", "viet lai", "dai tu", "chuan hoa",
     )),
     ("mobile", (
-        "mobile", "ios", "android", "flutter", "react native", "xcode", "swift",
+        "mobile", "ios", "android", "flutter", "react-native", "react native", "xcode", "swift",
     )),
 )
 
@@ -93,7 +97,8 @@ _MEDIUM_GROUPS = (
     ("tinh nang", "feature", "tich hop", "integrate"),
     ("debug", "sua loi", "toi uu", "optimize"),
     ("bao mat", "security", "deploy", "trien khai"),
-    ("review", "viet tool", "mcp server", "xay dung", "build", "tao app", "tao web"),
+    ("review", "viet tool", "mcp server", "xay", "xay dung", "build", "tao app", "tao web", "lam ung dung", "lam app", "lam web"),
+    ("viet test", "unit test", "viet unit test", "tao slide"),
 )
 
 _BATCH_PHRASES = ("nhieu file", "tat ca file", "hang loat", "csv", "json", "log", "logs", "sqlite", "batch")
@@ -204,14 +209,20 @@ def recommend_models(complexity, domains, quota_percent=None, clis=None):
             primary = "Gemini 4 Hydrogen (Medium)"
             alternative = "Gemini 3.8 Flash (High) cho việc lặp lại nhẹ"
     elif complexity == "complex":
-        if "frontend_ui" in domains and "architecture_plan" not in domains:
+        if critical_quota:
+            primary = "Gemini 4 Hydrogen (Medium) hoặc Claude Sonnet 5.5 (Medium) — chế độ tiết kiệm quota, kết hợp đẩy code nặng qua XAI247"
+            alternative = "Claude Sonnet 5.5 (High) hoặc Gemini 4 Neon (High) nếu bài toán cần chất lượng tối đa"
+        elif "frontend_ui" in domains and "architecture_plan" not in domains:
             primary = "Claude Sonnet 5.5 (High)"
             alternative = "Gemini 4 Neon (High) hoặc Gemini 4 Hydrogen (High)"
         else:
             primary = "Gemini 4 Neon (High)"
             alternative = "Claude Sonnet 5.5 (High) cho thiết kế UI/code dài"
     else:  # massive
-        if "architecture_plan" in domains or "debugging" in domains:
+        if critical_quota:
+            primary = "Gemini 4 Hydrogen (Medium) hoặc Gemini 3.8 Flash (High) để điều phối — chế độ tiết kiệm quota, đẩy phần nặng qua XAI247"
+            alternative = "Gemini 4 Neon (XHigh) hoặc Claude Opus 5.5 (High) khi cần suy luận kiến trúc sâu nhất"
+        elif "architecture_plan" in domains or "debugging" in domains:
             primary = "Gemini 4 Neon (XHigh)"
             alternative = "Claude Opus 5.5 (High) để đối chiếu kiến trúc"
         else:
@@ -308,6 +319,20 @@ def recommend_execution_strategy(complexity, domains, norm_prompt, files_count=N
     explicit_swarm = _has_any(norm_prompt, ("swarm", "doi quan", "song song", "teamwork", "nhieu agent"))
     build_domains = [d for d in domains if d not in ("data_batch", "docs_diagram")]
     is_pure_batch = "data_batch" in domains and len(build_domains) < 2
+
+    is_browser_inspect = (
+        "browser_web" in domains
+        and _has_any(norm_prompt, ("mo trinh duyet", "mo trang", "kiem tra trang", "localhost", "xem loi"))
+        and not _has_any(norm_prompt, ("xay", "xay dung", "tu dau", "full-stack", "fullstack", "viet lai", "refactor", "swarm", "doi quan"))
+    )
+    if is_browser_inspect and not explicit_swarm:
+        return {
+            "mode": "subagent",
+            "recommend_swarm": False,
+            "reason": "Không cần Swarm; dùng subagent `browser` (model `flash`) kiểm tra/tái hiện lỗi trực tiếp trên trình duyệt trước, sau đó sửa gọn trực tiếp.",
+            "swarm_roster": [],
+            "subagent": {"name": "browser", "model": "flash"},
+        }
 
     many_files_edit = files_count is not None and files_count >= 8 and not is_pure_batch
     recommend_swarm = (
@@ -434,7 +459,7 @@ def advise_task(index, prompt, workspace_hint=None, quota_percent=None, files_co
     if not prompt or not str(prompt).strip():
         raise ValueError("Missing required parameter 'prompt'.")
 
-    norm_prompt = strip_accents(prompt).lower()
+    norm_prompt = normalize_tech_terms(strip_accents(prompt).lower())
     domains = detect_domains(norm_prompt)
     complexity, score = classify_complexity(prompt, norm_prompt, domains, files_count=files_count)
     clis = detect_external_clis()

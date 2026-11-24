@@ -24,8 +24,8 @@ _STOPWORDS = frozenset({
 
 # Ánh xạ cụm từ tiếng Việt (không dấu) sang từ khóa kỹ thuật tiếng Anh.
 VI_TO_EN_SYNONYMS = (
-    (("giao dien", "lam dep", "thiet ke web", "trang web", "web dep", "mau sac", "bo cuc"),
-     ("ui", "ux", "frontend", "design", "styling", "tailwind", "component", "css", "layout")),
+    (("giao dien", "lam dep", "thiet ke web", "mau sac", "bo cuc"),
+     ("ui", "ux", "frontend", "design", "styling", "tailwind")),
     (("tailwind", "css", "design system"),
      ("tailwind", "design", "system", "styling", "ui")),
     (("sua loi", "bat loi", "tim loi", "chua loi", "loi gi", "nguyen nhan loi", "bi loi", "crash", "treo"),
@@ -34,19 +34,21 @@ VI_TO_EN_SYNONYMS = (
      ("systematic", "debugging", "debugger", "error", "analysis", "detective", "trace")),
     (("len ke hoach", "ke hoach", "kien truc", "thiet ke he thong", "phan ra", "lo trinh"),
      ("plan", "planning", "architecture", "architect", "design", "patterns", "brainstorming")),
-    (("kiem thu", "viet test", "chay test", "test tu dong"),
-     ("test", "testing", "pytest", "vitest", "unit", "e2e", "tdd", "verification")),
-    (("trinh duyet", "web app", "bam nut", "giao dien web", "trang tinh", "playwright"),
-     ("browser", "webapp", "playwright", "e2e", "chrome", "devtools", "ui")),
+    (("kiem thu", "viet test", "unit test", "chay test", "test tu dong"),
+     ("test", "testing", "pytest", "vitest", "unit", "tdd")),
+    (("trinh duyet", "playwright", "chrome", "devtools", "bam nut", "localhost", "kiem tra trang"),
+     ("browser", "playwright", "webapp", "chrome", "devtools", "e2e")),
     (("co so du lieu", "csdl", "du lieu quan he", "bang du lieu", "truy van"),
      ("database", "sql", "postgresql", "schema", "query", "migration", "optimizer")),
     (("postgres", "postgresql"),
      ("postgresql", "sql", "database", "schema", "indexing")),
     (("migration", "chuyen doi bang", "nang cap db"),
      ("migration", "migrations", "database", "sql", "schema")),
-    (("bao mat", "lo hong", "xac thuc", "dang nhap", "phan quyen", "mat khau", "bi mat"),
-     ("security", "auth", "authentication", "authorization", "xss", "sast", "secrets", "hardening")),
-    (("trien khai", "len mang", "dua len server", "ci cd", "ong dan"),
+    (("dang nhap", "xac thuc", "login", "oauth", "jwt", "session"),
+     ("auth", "authentication", "login", "oauth", "jwt")),
+    (("bao mat", "lo hong", "phan quyen", "mat khau", "bi mat", "xss", "sast"),
+     ("security", "xss", "sast", "audit", "hardening", "secrets")),
+    (("trien khai", "len mang", "dua len server", "cicd", "ci cd", "ong dan"),
      ("deploy", "deployment", "cicd", "vercel", "cloudflare", "netlify", "railway", "docker", "github")),
     (("hieu nang", "toc do", "bi cham", "toi uu", "nang ne", "bo nho", "cache"),
      ("performance", "optimization", "optimize", "caching", "cache", "bundle", "latency", "profiling")),
@@ -64,16 +66,24 @@ VI_TO_EN_SYNONYMS = (
      ("rag", "vector", "embedding", "similarity", "hybrid", "search")),
     (("mcp", "model context protocol", "ket noi tool"),
      ("mcp", "builder", "server", "app")),
-    (("du lieu lon", "xu ly du lieu", "bang tinh", "phan tich du lieu"),
-     ("data", "pipeline", "etl", "bigquery", "spark", "csv", "xlsx", "analytics")),
-    (("excel", "pdf", "word", "docx", "pptx", "powerpoint", "thuyet trinh", "slide", "bieu do"),
-     ("xlsx", "pdf", "docx", "pptx", "slides", "visualization", "storytelling")),
+    (("du lieu lon", "xu ly du lieu", "phan tich du lieu"),
+     ("data", "pipeline", "etl", "bigquery", "spark", "analytics")),
+    (("excel", "bang tinh", "csv"),
+     ("xlsx", "csv", "spreadsheet")),
+    (("pdf",),
+     ("pdf",)),
+    (("word", "docx"),
+     ("docx",)),
+    (("thuyet trinh", "slide", "slides", "powerpoint", "pptx"),
+     ("slides", "pptx", "presentation", "storytelling")),
     (("git", "pull request", "review code", "merge", "nhanh git", "worktree"),
      ("git", "pr", "review", "branch", "worktrees", "workflow", "diff")),
     (("tai cau truc", "don code", "code sach", "no ky thuat", "don dep"),
      ("refactor", "refactoring", "cleanup", "tech", "debt", "clean")),
     (("seo", "bai viet", "viet bai", "tiep thi", "thuong hieu", "noi dung"),
      ("seo", "content", "marketing", "brand", "meta", "keyword")),
+    (("eeat", "uy tin seo"),
+     ("seo", "authority", "eeat", "audit", "content")),
     (("doi quan", "swarm", "song song", "nhieu agent", "chia viec"),
      ("swarm", "parallel", "agents", "dispatching", "subagent", "orchestration")),
     (("di dong", "dien thoai", "app mobile", "ung dung di dong"),
@@ -113,6 +123,48 @@ _META_SKILLS = frozenset({
     "diagnosing-superpowers",
 })
 
+# Ánh xạ vendor/nền tảng cụ thể: phạt điểm nếu skill gắn vendor mà user không nhắc tới
+_VENDOR_RULES = (
+    (("firebase",), ("firebase",), frozenset({"firebase", "firestore"})),
+    (("databricks",), ("databricks",), frozenset({"databricks", "spark", "lakehouse", "dabs", "dbsql", "delta", "unity"})),
+    (("cloudflare", "wrangler", "turnstile", "durable"), ("cloudflare",), frozenset({"cloudflare", "wrangler", "workers", "durable", "turnstile"})),
+    (("netlify",), ("netlify",), frozenset({"netlify"})),
+    (("vercel",), ("vercel-plugin", "vercel"), frozenset({"vercel"})),
+    (("wix",), ("wix",), frozenset({"wix"})),
+    (("wordpress",), ("wordpress",), frozenset({"wordpress", "wp"})),
+    (("dt", "dynatrace"), ("dynatrace",), frozenset({"dynatrace", "dt"})),
+    (("temporal",), (), frozenset({"temporal"})),
+    (("canva",), ("canva",), frozenset({"canva"})),
+    (("bigin",), ("zoho-bigin",), frozenset({"bigin", "zoho", "crm"})),
+    (("auth0",), ("auth0",), frozenset({"auth0"})),
+    (("stripe",), ("stripe",), frozenset({"stripe"})),
+    (("paypal",), (), frozenset({"paypal"})),
+    (("crowdstrike",), ("crowdstrike",), frozenset({"crowdstrike"})),
+    (("intercom",), ("intercom",), frozenset({"intercom"})),
+    (("base44",), ("base44",), frozenset({"base44"})),
+    (("railway", "use-railway"), ("railway",), frozenset({"railway"})),
+    (("semrush",), ("semrush",), frozenset({"semrush"})),
+    (("coderabbit",), ("coderabbit",), frozenset({"coderabbit"})),
+)
+
+_TECH_REPLACEMENTS = (
+    (re.compile(r"\bnext\.js\b", re.I), "nextjs"),
+    (re.compile(r"\bnode\.js\b", re.I), "nodejs"),
+    (re.compile(r"\bvue\.js\b", re.I), "vuejs"),
+    (re.compile(r"\bnuxt\.js\b", re.I), "nuxtjs"),
+    (re.compile(r"\bexpress\.js\b", re.I), "expressjs"),
+    (re.compile(r"\bnest\.js\b", re.I), "nestjs"),
+    (re.compile(r"\bthree\.js\b", re.I), "threejs"),
+    (re.compile(r"\bchart\.js\b", re.I), "chartjs"),
+    (re.compile(r"(?<![a-z0-9])c\+\+(?![a-z0-9])", re.I), "cpp"),
+    (re.compile(r"(?<![a-z0-9])c#(?![a-z0-9])", re.I), "csharp"),
+    (re.compile(r"(?<![a-z0-9])\.net\b", re.I), "dotnet"),
+    (re.compile(r"\bci/cd\b", re.I), "cicd"),
+    (re.compile(r"\be-e-a-t\b", re.I), "eeat"),
+    (re.compile(r"\ba/b\b", re.I), "ab"),
+    (re.compile(r"\breact\s+native\b", re.I), "react-native"),
+)
+
 _CACHE_TTL = 60.0
 _MAX_READ_BYTES = 16384
 
@@ -126,15 +178,25 @@ def strip_accents(text):
     return "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn")
 
 
+def normalize_tech_terms(text):
+    """Chuẩn hóa tên công nghệ có dấu chấm/ký hiệu đặc biệt trước khi tách từ."""
+    if not text:
+        return ""
+    res = text
+    for pattern, repl in _TECH_REPLACEMENTS:
+        res = pattern.sub(repl, res)
+    return res
+
+
 def tokenize(text):
     """Tách văn bản đã chuẩn hóa thành danh sách token chữ cái/số loại bỏ stopwords."""
-    norm = strip_accents(text).lower()
+    norm = normalize_tech_terms(strip_accents(text).lower())
     return [tok for tok in re.findall(r"[a-z0-9]+", norm) if tok not in _STOPWORDS and (len(tok) > 1 or tok.isdigit())]
 
 
 def expand_query_terms(query):
     """Tách token trực tiếp từ query và mở rộng thêm từ khóa tiếng Anh từ tiếng Việt."""
-    norm_query = strip_accents(query).lower()
+    norm_query = normalize_tech_terms(strip_accents(query).lower())
     direct_terms = set(tokenize(norm_query))
     expanded_terms = set()
 
@@ -393,13 +455,30 @@ class SkillIndex:
             "elapsed_ms": self._last_elapsed_ms,
         }
 
+    @staticmethod
+    def _is_vendor_mismatch(skill_name_low, source, direct_terms):
+        """Kiểm tra skill có gắn chặt với vendor/nền tảng mà câu truy vấn không nhắc đến hay không."""
+        plugin_name = source[7:] if source.startswith("plugin:") else ""
+        for prefixes, plugins, triggers in _VENDOR_RULES:
+            matches_name = any(
+                skill_name_low == p
+                or skill_name_low.startswith(p + "-")
+                or skill_name_low.startswith(p + "_")
+                for p in prefixes
+            )
+            matches_plugin = bool(plugin_name) and plugin_name in plugins
+            if matches_name or matches_plugin:
+                if not (triggers & direct_terms):
+                    return True
+        return False
+
     def search(self, query, limit=8, workspace_dir=None):
         """Tìm kiếm top skill phù hợp với câu truy vấn tiếng Việt hoặc tiếng Anh."""
         if not query or not str(query).strip():
             return []
         self.ensure_loaded(workspace_dir)
 
-        norm_query = strip_accents(query).lower()
+        norm_query = normalize_tech_terms(strip_accents(query).lower())
         direct_terms, expanded_terms = expand_query_terms(query)
         if not direct_terms and not expanded_terms:
             return []
@@ -418,17 +497,24 @@ class SkillIndex:
             ):
                 score += 14.0
 
+            direct_hits = 0
             for tok in direct_terms:
                 w = self._idf.get(tok, 1.0)
                 if tok in rec["name_tokens"]:
-                    score += 3.0 * w
+                    score += 3.2 * w
+                    direct_hits += 1
                 elif tok in rec["desc_tokens"]:
                     score += 1.4 * w
+                    direct_hits += 1
                 elif tok in rec["heading_tokens"]:
                     score += 0.6 * w
+                    direct_hits += 1
+
+            if direct_hits >= 2:
+                score += 3.0
 
             for tok in expanded_terms:
-                w = self._idf.get(tok, 1.0) * 0.75
+                w = self._idf.get(tok, 1.0) * 0.50
                 if tok in rec["name_tokens"]:
                     score += 3.0 * w
                 elif tok in rec["desc_tokens"]:
@@ -440,6 +526,10 @@ class SkillIndex:
             if skill_name_low in _META_SKILLS:
                 if not any(part in direct_terms for part in skill_name_low.split("-")):
                     score *= 0.35
+
+            # Giảm điểm skill gắn vendor/nền tảng cụ thể khi người dùng không nhắc tên nền tảng đó
+            if self._is_vendor_mismatch(skill_name_low, rec["source"], direct_terms):
+                score *= 0.38
 
             if score >= 1.5:
                 desc = rec["description"]
