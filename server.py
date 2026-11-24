@@ -139,22 +139,13 @@ def do_advise_task(args):
         files_count=files_count,
         force_panel=force_panel,
     )
-    summary_meta = {
-        "complexity": advice["complexity"],
-        "score": advice["score"],
-        "should_pause_for_confirmation": advice["should_pause_for_confirmation"],
-        "mode": advice["execution"]["mode"],
-        "recommend_swarm": advice["execution"]["recommend_swarm"],
-        "antigravity_primary": advice["models"]["antigravity_primary"],
-        "skill_names": [s["name"] for s in advice["skills"]],
-        "index_stats": advice["index_stats"],
-    }
-    output = (
-        advice["formatted_markdown"]
-        + "\n\n<task_advisor_meta>\n"
-        + json.dumps(summary_meta, ensure_ascii=False, indent=2)
-        + "\n</task_advisor_meta>"
+    meta_line = (
+        f"[meta] complexity={advice['complexity']} "
+        f"| pause={str(advice['should_pause_for_confirmation']).lower()} "
+        f"| mode={advice['execution']['mode']} "
+        f"| swarm={str(advice['execution']['recommend_swarm']).lower()}"
     )
+    output = advice["formatted_markdown"] + "\n\n" + meta_line
     return text_result(output, False)
 
 

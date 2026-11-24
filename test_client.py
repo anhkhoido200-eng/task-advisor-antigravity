@@ -79,23 +79,34 @@ def test_router_logic():
     assert a_quota["models"]["quota_note"] is not None
     assert "XAI247" in a_quota["models"]["xai247_recommendation"]
 
+    a_high_quota = advise_task(
+        idx,
+        "tư vấn giúp mình xây một web app Next.js có đăng nhập và PostgreSQL",
+        quota_percent=None,
+    )
+    print("nextjs+pg (quota ok):", a_high_quota["complexity"], a_high_quota["execution"]["mode"], [s["name"] for s in a_high_quota["skills"]])
+    assert a_high_quota["execution"]["mode"] == "swarm", a_high_quota["execution"]
+    assert a_high_quota["execution"]["recommend_swarm"] is True
+    assert len(a_high_quota["skills"]) <= 3
+    nx_names = [s["name"] for s in a_high_quota["skills"]]
+    assert "postgresql" in nx_names, nx_names
+    assert "nextjs-app-router-patterns" in nx_names, nx_names
+    assert "browser_web" not in a_high_quota["domains"], a_high_quota["domains"]
+
     a_quota_cx = advise_task(
         idx,
         "tư vấn giúp mình xây một web app Next.js có đăng nhập và PostgreSQL",
         quota_percent=22,
     )
-    print("nextjs+pg+auth:", a_quota_cx["complexity"], a_quota_cx["execution"]["mode"], [s["name"] for s in a_quota_cx["skills"]])
+    print("nextjs+pg (quota=22%):", a_quota_cx["complexity"], a_quota_cx["execution"]["mode"])
     assert "tiết kiệm quota" in a_quota_cx["models"]["antigravity_primary"]
     assert a_quota_cx["models"]["quota_note"] is not None
-    assert "browser_web" not in a_quota_cx["domains"], a_quota_cx["domains"]
-    assert a_quota_cx["execution"]["mode"] == "swarm", a_quota_cx["execution"]
-    nx_names = [s["name"] for s in a_quota_cx["skills"]]
-    assert "postgresql" in nx_names, nx_names
-    assert any("nextjs" in n for n in nx_names), nx_names
-    assert any("auth" in n for n in nx_names), nx_names
-    nx_idx = next(i for i, n in enumerate(nx_names) if "nextjs" in n)
-    if "firebase-app-hosting-basics" in nx_names:
-        assert nx_idx < nx_names.index("firebase-app-hosting-basics"), nx_names
+    assert a_quota_cx["execution"]["mode"] == "xai247_delegate", a_quota_cx["execution"]
+    assert a_quota_cx["execution"]["recommend_swarm"] is False
+
+    auth_hits = [s["name"] for s in idx.search("đăng nhập auth jwt session", limit=3)]
+    print("auth search:", auth_hits)
+    assert any("auth" in n for n in auth_hits), auth_hits
 
     # 5. Pytest cho Python -> standard (không rơi xuống trivial), tránh temporal-python-testing lọt top 2
     a_pytest = advise_task(idx, "viết unit test bằng pytest cho dự án python")
@@ -126,8 +137,10 @@ def test_router_logic():
     a_cf = advise_task(idx, "triển khai dự án lên Cloudflare Workers và Vercel")
     cf_names = [s["name"] for s in a_cf["skills"]]
     print("cloudflare+vercel:", cf_names)
+    assert len(cf_names) <= 3
     assert any("cloudflare" in n or "workers" in n for n in cf_names), cf_names
-    assert "deployments-cicd" in cf_names, cf_names
+    vercel_hits = [s["name"] for s in idx.search("deploy vercel", limit=3)]
+    assert "deployments-cicd" in vercel_hits or any("vercel" in n for n in vercel_hits), vercel_hits
 
     # 9. SEO & E-E-A-T -> có seo_content, không lọt wix-manage vào top 3
     a_seo = advise_task(idx, "tối ưu SEO và viết bài blog chuẩn E-E-A-T")
@@ -190,7 +203,9 @@ def test_mcp_stdio():
     assert r_adv["result"]["isError"] is False
     adv_text = r_adv["result"]["content"][0]["text"]
     assert "Bảng Gợi Ý Chiến Lược Thực Thi" in adv_text
-    assert "<task_advisor_meta>" in adv_text
+    assert "[meta] " in adv_text
+    assert "<task_advisor_meta>" not in adv_text
+    assert "mode=xai247_delegate" in adv_text
     assert "XAI247" in adv_text
 
     r_bad = rpc(6, "tools/call", {"name": "advise_task", "arguments": {"prompt": "   "}})

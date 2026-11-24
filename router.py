@@ -314,8 +314,10 @@ def _build_swarm_roster(domains):
     return roster
 
 
-def recommend_execution_strategy(complexity, domains, norm_prompt, files_count=None):
-    """Quyết định chiến lược thực thi: single / code_mode / subagent / swarm."""
+def recommend_execution_strategy(complexity, domains, norm_prompt, files_count=None, quota_percent=None, clis=None):
+    """Quyết định chiến lược thực thi: single / code_mode / subagent / xai247_delegate / swarm."""
+    clis = clis or detect_external_clis()
+    has_any_cli = bool(clis.get("xai247") or clis.get("claude") or clis.get("codex"))
     explicit_swarm = _has_any(norm_prompt, ("swarm", "doi quan", "song song", "teamwork", "nhieu agent"))
     build_domains = [d for d in domains if d not in ("data_batch", "docs_diagram")]
     is_pure_batch = "data_batch" in domains and len(build_domains) < 2
@@ -343,6 +345,17 @@ def recommend_execution_strategy(complexity, domains, norm_prompt, files_count=N
     )
 
     if recommend_swarm:
+        if quota_percent is not None and quota_percent <= 30 and not explicit_swarm and has_any_cli:
+            return {
+                "mode": "xai247_delegate",
+                "recommend_swarm": False,
+                "reason": (
+                    f"Quota Antigravity còn thấp ({quota_percent}% <= 30%): KHÔNG nên mở Swarm trên Antigravity "
+                    "(tránh tốn quota gấp 2-3x). Giữ 1 Antigravity điều phối và đẩy phần code/refactor/test song song sang XAI247 (`xai247 run` / `claude -p` / `codex exec`)."
+                ),
+                "swarm_roster": [],
+                "subagent": None,
+            }
         return {
             "mode": "swarm",
             "recommend_swarm": True,
@@ -439,7 +452,10 @@ def _format_markdown(advice):
     if skills:
         lines.append("- **Skill nên nạp (`SKILL.md`):**")
         for s in skills:
-            lines.append(f"  - `{s['name']}` (score {s['score']}, nguồn `{s['source']}`): {s['description']} — `{s['path']}`")
+            desc = s["description"]
+            if len(desc) > 120:
+                desc = desc[:117].rstrip() + "..."
+            lines.append(f"  - `{s['name']}` ({s['score']}, `{s['source']}`): {desc} — `{s['path']}`")
     else:
         lines.append("- **Skill nên nạp:** Chưa có skill chuyên biệt khớp cao; có thể dùng `search_skills` với từ khóa tiếng Anh cụ thể hơn.")
 
@@ -464,11 +480,18 @@ def advise_task(index, prompt, workspace_hint=None, quota_percent=None, files_co
     complexity, score = classify_complexity(prompt, norm_prompt, domains, files_count=files_count)
     clis = detect_external_clis()
     models = recommend_models(complexity, domains, quota_percent=quota_percent, clis=clis)
-    execution = recommend_execution_strategy(complexity, domains, norm_prompt, files_count=files_count)
+    execution = recommend_execution_strategy(
+        complexity,
+        domains,
+        norm_prompt,
+        files_count=files_count,
+        quota_percent=quota_percent,
+        clis=clis,
+    )
     slash_commands = recommend_slash_commands(complexity, domains, execution["recommend_swarm"], norm_prompt)
 
     ws_dir = workspace_hint if workspace_hint and os.path.isdir(workspace_hint) else None
-    skills = index.search(prompt, limit=5, workspace_dir=ws_dir)
+    skills = index.search(prompt, limit=3, workspace_dir=ws_dir)
 
     # Tự động cho việc vừa & lớn; việc nhẹ chỉ hiện bảng nếu được ép qua force_panel
     should_pause = bool(force_panel) or (complexity in ("standard", "complex", "massive"))
